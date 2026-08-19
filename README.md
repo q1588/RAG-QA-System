@@ -142,25 +142,6 @@ docker compose up -d --build
 └── docs/部署文档.md
 ```
 
-## 🤔 面试 Q&A（讲透的关键）
-
-**Q1：RAG 是什么？为什么要用它？**
-RAG（Retrieval-Augmented Generation）检索增强生成：先从外部知识库检索与问题相关的片段，再把片段作为上下文交给大模型回答。解决大模型两大痛点：① **幻觉**——私域数据模型没学过，容易编造；② **知识更新**——无需重新训练，更新文档库即可。本项目的索引阶段（切分→向量化→入库）和查询阶段（检索→拼上下文→生成）是标准两段式。
-
-**Q2：为什么选 Chroma 向量数据库？检索的相似度是什么？**
-Chroma 轻量、Python 原生、支持本地持久化，适合教学/演示场景。本项目的检索用 `similarity_search_with_score` 返回**原始距离**（越小越相似）——nomic-embed-text 把文本映射成 768 维向量，检索即在高维空间里找与问题向量距离最近的知识片段。生产可替换 Milvus / OpenSearch（混合检索 BM25+向量）。
-
-**Q3：多轮对话记忆是怎么做的？**
-不用外置 memory 库，直接从 `messages` 表读历史：`memory.build_history` 按时间倒序多取一批 → 过滤（只留 user/assistant 的有效 text，剔除空/失败回答）→ 截最近 N 条 → 反转回正序 → 拼进提示词【历史对话】。N 由 `MAX_CONTEXT_HISTORY` 控制，避免上下文爆窗。
-
-**Q4：密码安全怎么做的？为什么捕获 IntegrityError？**
-密码用 bcrypt 加盐哈希（每次生成随机 salt，`hashpw(password, gensalt())`），数据库只存哈希，登录时 `checkpw` 比对，杜绝明文落库（bcrypt 5.x 对超 72 字节输入抛异常，做了字节级守卫）。注册时若两个请求同时抢同一用户名，数据库唯一约束会产生 `IntegrityError`，代码 `await db.rollback()` 回滚事务后返回 409「用户名已存在」，而不是让脏数据留在会话里。
-
-**Q5：异步 SQLAlchemy 怎么同时支持 SQLite 和 MySQL？**
-`make_engine(url)` 按连接串前缀分支：SQLite 只需关 `check_same_thread`（免连接池健康检查）；MySQL 需要 `pool_pre_ping`（取连接时探测掉线连接）+ `pool_recycle`（定期回收长连接）。业务代码不感知差异，改 `.env` 的 `DATABASE_URL` 即可切换——本地零依赖跑 SQLite，Docker 里跑 MySQL。
-
-**Q6：为什么 RAG 调用要放进 `asyncio.to_thread`？**
-Ollama 的 embedding / 生成是同步阻塞调用。FastAPI 是异步框架，若在事件循环里直接同步调用，整个服务会被卡住。用 `asyncio.to_thread` 丢进线程池执行，不阻塞其他请求；同时用 `threading.Lock` 保护 Chroma 单例，避免并发访问向量库竞争。
 
 ## 📌 可扩展方向
 
