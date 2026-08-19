@@ -1,0 +1,46 @@
+# 基于大模型的 RAG 知识库问答系统 —— Docker 部署
+# 前提：宿主机已安装并运行 Ollama（qwen2.5:3b + nomic-embed-text 已 pull）
+# 用法：docker compose up -d --build
+services:
+  db:
+    image: mysql:8.0
+    container_name: rag_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123456}
+      MYSQL_DATABASE: rag_db
+      MYSQL_USER: rag_user
+      MYSQL_PASSWORD: rag_pass
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root123456}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    container_name: rag_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+asyncmy://rag_user:rag_pass@db:3306/rag_db?charset=utf8mb4
+      # Docker Desktop 通过 host.docker.internal 访问宿主机 Ollama
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      JWT_SECRET: ${JWT_SECRET:-please-change-me-in-production}
+      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b}
+    volumes:
+      - upload_files:/app/upload_files
+      - chroma_store:/app/chroma_store
+    ports:
+      - "8000:8000"
+
+volumes:
+  mysql_data:
+  upload_files:
+  chroma_store:

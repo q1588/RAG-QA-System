@@ -1,0 +1,17 @@
+# 环境与密钥
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 本地数据库 / 向量库 / 上传文件
+app.db
+chroma_store/
+upload_files/
+
+# 测试与日志
+.pytest_cache/
+*.log

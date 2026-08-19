@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 知识库问答</title>
+<style>
+  :root{
+    --bg:#f5f6fa; --panel:#ffffff; --primary:#4a6cf7; --primary-d:#3a57d4;
+    --text:#1f2430; --muted:#8a93a6; --border:#e4e8f0;
+    --user:#4a6cf7; --ai:#f0f2f8; --ok:#22c55e; --err:#ef4444;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif; background:var(--bg); color:var(--text); height:100vh}
+  button{font-family:inherit; cursor:pointer}
+  input,textarea{font-family:inherit; font-size:14px}
+
+  /* ---------- 认证视图 ---------- */
+  #authView{display:flex; align-items:center; justify-content:center; height:100vh}
+  .auth-card{width:360px; background:var(--panel); border-radius:16px; padding:32px; box-shadow:0 8px 40px rgba(31,36,48,.08)}
+  .auth-card h1{font-size:20px; margin-bottom:4px}
+  .auth-card .sub{color:var(--muted); font-size:13px; margin-bottom:24px}
+  .auth-card .tabs{display:flex; margin-bottom:20px; border-bottom:2px solid var(--border)}
+  .auth-card .tabs button{flex:1; background:none; border:none; padding:10px 0; font-size:14px; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-2px}
+  .auth-card .tabs button.active{color:var(--primary); border-bottom-color:var(--primary); font-weight:600}
+  .auth-card label{display:block; font-size:13px; color:var(--muted); margin:14px 0 6px}
+  .auth-card input{width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:8px; outline:none}
+  .auth-card input:focus{border-color:var(--primary)}
+  .btn-primary{width:100%; padding:12px; margin-top:22px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:15px}
+  .btn-primary:hover{background:var(--primary-d)}
+  .auth-msg{font-size:13px; margin-top:12px; min-height:18px}
+  .auth-msg.ok{color:var(--ok)} .auth-msg.err{color:var(--err)}
+
+  /* ---------- 主应用视图 ---------- */
+  #appView{display:none; height:100vh}
+  .layout{display:flex; height:100%}
+  .sidebar{width:260px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column}
+  .sidebar .brand{padding:18px 16px; font-weight:700; font-size:16px; border-bottom:1px solid var(--border)}
+  .sidebar .brand span{color:var(--primary)}
+  .sidebar .new-btn{margin:14px 12px; padding:10px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:14px}
+  #convList{flex:1; overflow-y:auto}
+  .conv-item{padding:12px 16px; cursor:pointer; border-bottom:1px solid var(--border); font-size:14px; transition:background .15s}
+  .conv-item:hover{background:#f0f2f8}
+  .conv-item.active{background:#e8edff; color:var(--primary); font-weight:600}
+  .sidebar .user-row{padding:14px 16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted)}
+  .sidebar .logout{background:none; border:none; color:var(--err); font-size:13px}
+
+  .main{flex:1; display:flex; flex-direction:column}
+  .chat-header{padding:16px 24px; background:var(--panel); border-bottom:1px solid var(--border); font-weight:600}
+  #msgBox{flex:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:14px}
+  .msg{max-width:72%; padding:12px 16px; border-radius:12px; font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word}
+  .msg.user{align-self:flex-end; background:var(--user); color:#fff; border-bottom-right-radius:4px}
+  .msg.ai{align-self:flex-start; background:var(--ai); border-bottom-left-radius:4px}
+  .msg .meta{font-size:12px; color:var(--muted); margin-bottom:4px}
+  .msg.user .meta{color:rgba(255,255,255,.75)}
+  .sources{margin-top:10px; border-top:1px solid var(--border); padding-top:8px}
+  .sources summary{font-size:12px; color:var(--primary); cursor:pointer}
+  .source-item{font-size:12px; color:var(--muted); background:#fff; border:1px solid var(--border); border-radius:6px; padding:8px; margin-top:6px; white-space:pre-wrap}
+  .empty-hint{color:var(--muted); text-align:center; margin-top:20vh; font-size:14px}
+
+  .composer{background:var(--panel); border-top:1px solid var(--border); padding:16px 24px; display:flex; gap:12px; align-items:flex-end}
+  .composer textarea{flex:1; border:1px solid var(--border); border-radius:10px; padding:11px 12px; resize:none; outline:none; max-height:120px}
+  .composer textarea:focus{border-color:var(--primary)}
+  .composer button{padding:11px 22px; background:var(--primary); color:#fff; border:none; border-radius:10px}
+  .composer button:disabled{background:#a9b7f5; cursor:not-allowed}
+  .composer .tip{font-size:12px; color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- ============ 认证视图 ============ -->
+<div id="authView">
+  <div class="auth-card">
+    <h1>RAG 知识库问答</h1>
+    <div class="sub">基于大模型的检索增强生成系统</div>
+    <div class="tabs">
+      <button id="tabLogin" class="active" onclick="switchTab('login')">登录</button>
+      <button id="tabRegister" onclick="switchTab('register')">注册</button>
+    </div>
+
+    <div id="formLogin">
+      <label>用户名</label><input id="loginUser" placeholder="请输入用户名">
+      <label>密码</label><input id="loginPass" type="password" placeholder="请输入密码">
+      <button class="btn-primary" onclick="doLogin()">登 录</button>
+    </div>
+
+    <div id="formRegister" style="display:none">
+      <label>用户名（3-32 字符）</label><input id="regUser" placeholder="请输入用户名">
+      <label>密码（至少 6 位）</label><input id="regPass" type="password" placeholder="请输入密码">
+      <button class="btn-primary" onclick="doRegister()">注 册</button>
+    </div>
+    <div id="authMsg" class="auth-msg"></div>
+  </div>
+</div>
+
+<!-- ============ 主应用视图 ============ -->
+<div id="appView">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="brand">📚 RAG <span>知识库</span></div>
+      <button class="new-btn" onclick="newConversation()">+ 新建会话</button>
+      <div id="convList"></div>
+      <div class="user-row">
+        <span id="currentUser"></span>
+        <button class="logout" onclick="logout()">退出登录</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="chat-header" id="chatTitle">新对话</div>
+      <div id="msgBox"><div class="empty-hint">选择一个会话，或点击「新建会话」开始提问<br>在 Swagger（/docs）中登录后可上传文档并向量化</div></div>
+      <div class="composer">
+        <textarea id="inputBox" placeholder="输入问题，回车发送…" rows="1"></textarea>
+        <button id="sendBtn" onclick="sendMessage()">发送</button>
+      </div>
+      <div class="composer tip" style="padding-top:0;border-top:none">Tips：未向量化文档时，可在 <a href="/docs" target="_blank">/docs</a> 用 Authorize 登录后调用 upload + vectorize 接口</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "";
+const TOKEN_KEY = "rag_token";
+
+/* ---------- 认证视图逻辑 ---------- */
+function switchTab(tab){
+  document.getElementById("tabLogin").classList.toggle("active", tab==="login");
+  document.getElementById("tabRegister").classList.toggle("active", tab==="register");
+  document.getElementById("formLogin").style.display = tab==="login" ? "" : "none";
+  document.getElementById("formRegister").style.display = tab==="register" ? "" : "none";
+  document.getElementById("authMsg").textContent = "";
+}
+function setAuthMsg(text, ok){
+  const el = document.getElementById("authMsg");
+  el.textContent = text; el.className = "auth-msg " + (ok ? "ok" : "err");
+}
+
+async function doRegister(){
+  const username = document.getElementById("regUser").value.trim();
+  const password = document.getElementById("regPass").value;
+  const res = await fetch(API + "/api/auth/register", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({username, password})
+  });
+  const data = await res.json();
+  if(res.ok){ setAuthMsg("注册成功，请登录", true); switchTab("login"); }
+  else setAuthMsg(data.detail || "注册失败", false);
+}
+
+async function doLogin(){
+  const username = document.getElementById("loginUser").value.trim();
+  const password = document.getElementById("loginPass").value;
+  const res = await fetch(API + "/api/auth/login", {
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body: new URLSearchParams({username, password})
+  });
+  const data = await res.json();
+  if(res.ok){
+    localStorage.setItem(TOKEN_KEY, data.access_token);
+    enterApp();
+  } else setAuthMsg(data.detail || "登录失败", false);
+}
+
+/* ---------- 应用视图逻辑 ---------- */
+function authHeader(){
+  const t = localStorage.getItem(TOKEN_KEY);
+  return t ? {"Authorization":"Bearer "+t, "Content-Type":"application/json"} : {"Content-Type":"application/json"};
+}
+async function api(path, options={}){
+  const res = await fetch(API + path, { ...options, headers:{...authHeader(), ...(options.headers||{})} });
+  if(res.status === 401){
+    localStorage.removeItem(TOKEN_KEY); location.reload(); throw new Error("登录已过期");
+  }
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.detail || "请求失败");
+  return data;
+}
+
+let currentConv = null;
+
+async function enterApp(){
+  document.getElementById("authView").style.display = "none";
+  document.getElementById("appView").style.display = "flex";
+  const me = await api("/api/auth/me");
+  document.getElementById("currentUser").textContent = "👤 " + me.username;
+  await loadConversations();
+}
+
+function logout(){
+  localStorage.removeItem(TOKEN_KEY);
+  location.reload();
+}
+
+async function loadConversations(){
+  const list = await api("/api/chat/conversations");
+  const el = document.getElementById("convList");
+  el.innerHTML = "";
+  if(!list.length){ el.innerHTML = '<div class="empty-hint" style="margin-top:30px">暂无会话</div>'; return; }
+  list.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "conv-item" + (currentConv===c.id ? " active":"");
+    div.textContent = c.title || ("会话 #" + c.id);
+    div.onclick = () => selectConversation(c);
+    el.appendChild(div);
+  });
+}
+
+async function newConversation(){
+  const c = await api("/api/chat/conversations", {method:"POST", body:JSON.stringify({title:"新对话"})});
+  await selectConversation(c);
+  await loadConversations();
+}
+
+async function selectConversation(c){
+  currentConv = c.id;
+  document.getElementById("chatTitle").textContent = c.title || ("会话 #" + c.id);
+  document.querySelectorAll(".conv-item").forEach(x=>x.classList.remove("active"));
+  event && event.currentTarget && event.currentTarget.classList.add("active");
+  const msgs = await api(`/api/chat/conversations/${c.id}/messages`);
+  renderMessages(msgs);
+}
+
+function renderMessages(msgs){
+  const box = document.getElementById("msgBox");
+  box.innerHTML = "";
+  if(!msgs.length){ box.innerHTML = '<div class="empty-hint">开始提问吧 👇</div>'; return; }
+  msgs.forEach(m => {
+    if(m.role === "user"){
+      box.appendChild(msgEl(m.content, "user", "我"));
+    } else if(m.role === "assistant"){
+      const sources = [];
+      box.appendChild(msgEl(m.content, "ai", "AI", sources));
+    }
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+function msgEl(content, role, label, sources=[]){
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  const meta = document.createElement("div");
+  meta.className = "meta"; meta.textContent = label;
+  const body = document.createElement("div");
+  body.textContent = content;
+  div.appendChild(meta); div.appendChild(body);
+  return div;
+}
+
+async function sendMessage(){
+  const input = document.getElementById("inputBox");
+  const question = input.value.trim();
+  if(!question || !currentConv) return;
+  if(!currentConv){ alert("请先创建或选择一个会话"); return; }
+
+  const box = document.getElementById("msgBox");
+  const empty = box.querySelector(".empty-hint"); if(empty) empty.remove();
+  box.appendChild(msgEl(question, "user", "我"));
+  box.scrollTop = box.scrollHeight;
+
+  const btn = document.getElementById("sendBtn");
+  btn.disabled = true; input.value = "";
+
+  try{
+    const data = await api("/api/rag/query", {
+      method:"POST",
+      body: JSON.stringify({conversation_id: currentConv, question, top_k:3})
+    });
+
+    const aiDiv = msgEl(data.answer, "ai", "AI");
+    if(data.source_docs && data.source_docs.length){
+      const s = document.createElement("details");
+      s.className = "sources";
+      const sum = document.createElement("summary");
+      sum.textContent = "📄 参考来源（" + data.source_docs.length + " 段）";
+      s.appendChild(sum);
+      data.source_docs.forEach(d => {
+        const it = document.createElement("div");
+        it.className = "source-item";
+        it.textContent = `[${d.index}] 来源:${d.source}  距离:${d.distance}\n${d.content}`;
+        s.appendChild(it);
+      });
+      aiDiv.appendChild(s);
+    }
+    box.appendChild(aiDiv);
+    box.scrollTop = box.scrollHeight;
+  }catch(e){
+    box.appendChild(msgEl("请求失败：" + e.message, "ai", "AI"));
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+/* 回车发送 */
+document.getElementById("inputBox").addEventListener("keydown", e=>{
+  if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendMessage(); }
+});
+
+/* 启动：有 token 则直接进入应用 */
+(async function init(){
+  if(localStorage.getItem(TOKEN_KEY)){
+    try{ await enterApp(); }catch(e){ /* 401 已自动跳登录 */ }
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# ===== MySQL 异步驱动（仅生产/Docker 使用）=====
+# asyncmy>=0.2.11：支持 Python 3.14 且有 Windows wheel，同时修复 CVE-2025-65896
+# 本地默认 SQLite（requirements.txt 已含 aiosqlite），本文件仅 docker-compose 安装
+asyncmy>=0.2.11
