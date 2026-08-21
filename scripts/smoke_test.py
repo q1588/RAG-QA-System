@@ -10,6 +10,13 @@ import sys
 
 import httpx
 
+# Windows 下控制台默认 cp1252，直接 print emoji/中文会 UnicodeEncodeError；
+# 统一切到 UTF-8，保证冒烟日志能正常输出。
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
+
 # 可用环境变量 SMOKE_BASE_URL 覆盖，默认 8000
 BASE_URL = os.getenv("SMOKE_BASE_URL", "http://127.0.0.1:8000")
 

@@ -44,6 +44,17 @@
   .conv-item.active{background:#e8edff; color:var(--primary); font-weight:600}
   .sidebar .user-row{padding:14px 16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--muted)}
   .sidebar .logout{background:none; border:none; color:var(--err); font-size:13px}
+  .upload-box{padding:0 12px 12px; border-bottom:1px solid var(--border)}
+  .upload-btn{width:100%; padding:9px; background:#fff; border:1px dashed var(--primary); color:var(--primary); border-radius:8px; font-size:13px}
+  .upload-btn:hover{background:#e8edff}
+  .upload-status{font-size:12px; color:var(--muted); margin-top:8px; min-height:16px; word-break:break-all}
+  .upload-status.ok{color:var(--ok)} .upload-status.err{color:var(--err)}
+  .file-list{margin-top:8px; max-height:160px; overflow-y:auto}
+  .file-item{display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--muted); padding:4px 0; border-bottom:1px solid var(--border)}
+  .file-item:last-child{border-bottom:none}
+  .file-title{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:8px}
+  .file-del{background:none; border:none; color:var(--err); font-size:12px; cursor:pointer; padding:0 2px}
+  .file-del:hover{color:#c02b2b}
 
   .main{flex:1; display:flex; flex-direction:column}
   .chat-header{padding:16px 24px; background:var(--panel); border-bottom:1px solid var(--border); font-weight:600}
@@ -99,6 +110,12 @@
     <div class="sidebar">
       <div class="brand">📚 RAG <span>知识库</span></div>
       <button class="new-btn" onclick="newConversation()">+ 新建会话</button>
+      <div class="upload-box">
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📤 上传文档</button>
+        <input type="file" id="fileInput" accept=".txt,.md,.pdf,.docx" multiple style="display:none">
+        <div id="uploadStatus" class="upload-status"></div>
+        <div class="file-list" id="fileList"></div>
+      </div>
       <div id="convList"></div>
       <div class="user-row">
         <span id="currentUser"></span>
@@ -108,12 +125,12 @@
 
     <div class="main">
       <div class="chat-header" id="chatTitle">新对话</div>
-      <div id="msgBox"><div class="empty-hint">选择一个会话，或点击「新建会话」开始提问<br>在 Swagger（/docs）中登录后可上传文档并向量化</div></div>
+      <div id="msgBox"><div class="empty-hint">选择一个会话，或点击「新建会话」开始提问<br>先在左侧「📤 上传文档」添加知识库文档（自动向量化）</div></div>
       <div class="composer">
         <textarea id="inputBox" placeholder="输入问题，回车发送…" rows="1"></textarea>
         <button id="sendBtn" onclick="sendMessage()">发送</button>
       </div>
-      <div class="composer tip" style="padding-top:0;border-top:none">Tips：未向量化文档时，可在 <a href="/docs" target="_blank">/docs</a> 用 Authorize 登录后调用 upload + vectorize 接口</div>
+      <div class="composer tip" style="padding-top:0;border-top:none">Tips：在左侧「📤 上传文档」选择 txt/md/pdf/docx，自动向量化入库后即可提问</div>
     </div>
   </div>
 </div>
@@ -186,6 +203,7 @@ async function enterApp(){
   const me = await api("/api/auth/me");
   document.getElementById("currentUser").textContent = "👤 " + me.username;
   await loadConversations();
+  await loadFiles();
 }
 
 function logout(){
@@ -201,10 +219,92 @@ async function loadConversations(){
   list.forEach(c => {
     const div = document.createElement("div");
     div.className = "conv-item" + (currentConv===c.id ? " active":"");
+    div.dataset.id = c.id;
     div.textContent = c.title || ("会话 #" + c.id);
     div.onclick = () => selectConversation(c);
     el.appendChild(div);
   });
+}
+
+/* ---------- 文档上传 + 自动向量化 ---------- */
+document.getElementById("fileInput").addEventListener("change", handleUpload);
+
+async function handleUpload(e){
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  const status = document.getElementById("uploadStatus");
+  for(const f of files){
+    status.className = "upload-status";
+    status.textContent = `上传中：${f.name} ...`;
+    const form = new FormData();
+    form.append("file", f);
+    try{
+      // 注意：上传必须用裸 fetch 只带 Authorization；
+      // api() 助手会强制 Content-Type: application/json，破坏 multipart boundary
+      const up = await fetch(API + "/api/rag/upload", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + localStorage.getItem(TOKEN_KEY) },
+        body: form
+      });
+      const upData = await up.json().catch(()=>({}));
+      if(!up.ok) throw new Error(upData.detail || "上传失败");
+
+      status.textContent = `向量化中：${f.name} ...`;
+      const vec = await fetch(API + "/api/rag/vectorize", {
+        method: "POST",
+        headers: { ...authHeader(), "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: upData.filename })
+      });
+      const vecData = await vec.json().catch(()=>({}));
+      if(!vec.ok) throw new Error(vecData.detail || "向量化失败");
+
+      status.className = "upload-status ok";
+      status.textContent = `✅ ${f.name} 已入库 ${vecData.chunk_count} 个分片`;
+    }catch(err){
+      status.className = "upload-status err";
+      status.textContent = `❌ ${f.name}：${err.message}`;
+    }
+  }
+  await loadFiles();
+  e.target.value = "";
+}
+
+async function loadFiles(){
+  const el = document.getElementById("fileList");
+  let files;
+  try{ files = await api("/api/rag/files"); }
+  catch(e){ el.innerHTML = ""; return; }
+  if(!files || !files.length){
+    el.innerHTML = '<div class="file-item" style="border:none">知识库暂无文档</div>';
+    return;
+  }
+  el.innerHTML = "";
+  files.forEach(f => {
+    const div = document.createElement("div");
+    div.className = "file-item";
+    const name = document.createElement("span");
+    name.className = "file-title"; name.textContent = f.filename;
+    const size = document.createElement("span");
+    size.textContent = formatSize(f.size);
+    const del = document.createElement("button");
+    del.className = "file-del"; del.textContent = "✕";
+    del.title = "删除该文档";
+    del.onclick = async () => {
+      if(!confirm(`删除文档「${f.filename}」？将从知识库移除其全部分片。`)) return;
+      try{
+        await api("/api/rag/files/" + encodeURIComponent(f.filename), {method:"DELETE"});
+        await loadFiles();
+      }catch(err){ alert("删除失败：" + err.message); }
+    };
+    div.appendChild(name); div.appendChild(size); div.appendChild(del);
+    el.appendChild(div);
+  });
+}
+
+function formatSize(bytes){
+  if(bytes < 1024) return bytes + " B";
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + " KB";
+  return (bytes/1024/1024).toFixed(1) + " MB";
 }
 
 async function newConversation(){
@@ -217,7 +317,8 @@ async function selectConversation(c){
   currentConv = c.id;
   document.getElementById("chatTitle").textContent = c.title || ("会话 #" + c.id);
   document.querySelectorAll(".conv-item").forEach(x=>x.classList.remove("active"));
-  event && event.currentTarget && event.currentTarget.classList.add("active");
+  const item = document.querySelector(`.conv-item[data-id="${c.id}"]`);
+  if(item) item.classList.add("active");
   const msgs = await api(`/api/chat/conversations/${c.id}/messages`);
   renderMessages(msgs);
 }
@@ -278,7 +379,7 @@ async function sendMessage(){
       data.source_docs.forEach(d => {
         const it = document.createElement("div");
         it.className = "source-item";
-        it.textContent = `[${d.index}] 来源:${d.source}  距离:${d.distance}\n${d.content}`;
+        it.textContent = `[${d.index}] 来源:${d.source}  相关度:${d.relevance}\n${d.content}`;
         s.appendChild(it);
       });
       aiDiv.appendChild(s);

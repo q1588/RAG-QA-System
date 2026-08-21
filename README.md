@@ -57,8 +57,10 @@ ollama pull nomic-embed-text
 **1. 安装依赖**（使用项目已有 venv）：
 
 ```bash
-cd 8.11
-../.venv/Scripts/pip install -r requirements.txt
+cd RAG-QA-System
+../.venv/Scripts/pip install -r requirements-dev.txt   # 基础 + RAG + pytest（跑单测用）
+# 可选：复制环境变量样例，不复制也可（默认值可直接运行）
+cp .env.example .env
 ```
 
 **2. 启动服务**（确保 Ollama 在运行）：
@@ -72,7 +74,7 @@ cd 8.11
 - 聊天页面：http://127.0.0.1:8000/
 - Swagger 接口文档：http://127.0.0.1:8000/docs （登录接口右上角有 **Authorize** 按钮，可在线调试）
 
-**4. 给知识库导入文档**：登录后在 `/docs` 里调用 `upload` 上传 txt/md/pdf/docx → `vectorize` 向量化 → 即可在聊天页提问。
+**4. 给知识库导入文档**：登录后点击左侧「📤 上传文档」，选择 txt/md/pdf/docx，系统会自动上传并向量化入库（侧边栏可看到已上传文档），即可在聊天页提问。
 
 > 若端口 8000 被占用，换端口后通过 `SMOKE_BASE_URL=http://127.0.0.1:8001 ../.venv/Scripts/python.exe scripts/smoke_test.py` 跑冒烟测试。
 
@@ -93,6 +95,7 @@ cd 8.11
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
+| GET | `/health` | 无 | 健康检查（服务 + 数据库状态） |
 | POST | `/api/auth/register` | 无 | 注册，`{username, password}`；重复用户名 → 409 |
 | POST | `/api/auth/login` | 无 | OAuth2 表单登录 → `{access_token}` |
 | GET | `/api/auth/me` | Bearer | 当前用户信息 |
@@ -101,8 +104,10 @@ cd 8.11
 | GET | `/api/chat/conversations/{id}/messages` | Bearer | 按会话查消息（可带 `?msg_type=`） |
 | PATCH | `/api/chat/messages/{id}` | Bearer | 更新消息内容 |
 | POST | `/api/rag/upload` | Bearer | 上传文档（multipart，txt/md/pdf/docx） |
-| POST | `/api/rag/vectorize` | Bearer | 向量化已上传文档 |
-| POST | `/api/rag/query` | Bearer | RAG 问答 `{conversation_id, question, top_k?}` |
+| GET | `/api/rag/files` | Bearer | 已上传文档列表 |
+| DELETE | `/api/rag/files/{filename}` | Bearer | 删除文档（清除向量分片 + 移除文件） |
+| POST | `/api/rag/vectorize` | Bearer | 向量化已上传文档（幂等：同名文档先清旧分片） |
+| POST | `/api/rag/query` | Bearer | RAG 问答 `{conversation_id, question, top_k?}`；命中片段带 `relevance` 相关性分数（0~1），低于阈值时如实返回「知识库无相关内容」 |
 
 ## 🐳 Docker 部署
 
@@ -116,7 +121,7 @@ docker compose up -d --build
 ## 🗂️ 项目结构
 
 ```
-8.11/
+RAG-QA-System/
 ├── app/
 │   ├── main.py            # 入口：建表、CORS、路由、静态页
 │   ├── core/

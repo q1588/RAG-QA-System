@@ -63,7 +63,39 @@ async def vectorize_document(
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # Ollama 不可用：返回 503 友好提示；真正的 bug 照常 500
+        if rag_service.is_backend_unavailable(e):
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    f"向量化失败：无法连接本地模型服务（{type(e).__name__}），"
+                    "请确认 Ollama 已启动并拉取了 nomic-embed-text"
+                ),
+            )
+        raise
     return result
+
+
+@router.get("/files", summary="已上传文档列表")
+async def list_uploaded_files(current_user: User = Depends(get_current_user)):
+    """列出 upload_files 目录下的文档，供前端展示知识库内容。"""
+    if not os.path.isdir(settings.UPLOAD_DIR):
+        return []
+    return [
+        {"filename": name, "size": os.path.getsize(p)}
+        for name in sorted(os.listdir(settings.UPLOAD_DIR))
+        if os.path.isfile(p := os.path.join(settings.UPLOAD_DIR, name))
+    ]
+
+
+@router.delete("/files/{filename}", summary="删除文档")
+async def delete_document(
+    filename: str,
+    current_user: User = Depends(get_current_user),
+):
+    """删除文档：从 Chroma 清除该文件的全部分片，并移除上传文件。"""
+    return await asyncio.to_thread(rag_service.delete_file, filename)
 
 
 @router.post("/query", response_model=QueryResponse, summary="RAG 问答（多轮）")
@@ -84,9 +116,22 @@ async def rag_query(
     )
 
     # Ollama 是同步阻塞调用，放到线程池，避免阻塞事件循环
-    result = await asyncio.to_thread(
-        rag_service.rag_query, body.question, history, body.top_k
-    )
+    try:
+        result = await asyncio.to_thread(
+            rag_service.rag_query, body.question, history, body.top_k
+        )
+    except Exception as e:
+        if not rag_service.is_backend_unavailable(e):
+            raise  # 非外部服务问题，保留 500 便于排查
+        # 优雅降级：返回兜底答案并照常持久化。
+        # memory 模块的 _INVALID_MARKERS 会把这些「请求失败」回答挡在多轮上下文外。
+        result = {
+            "answer": (
+                f"抱歉，请求失败：无法连接本地大模型服务（{type(e).__name__}）。"
+                "请确认 Ollama 已启动并拉取了 qwen2.5:3b 与 nomic-embed-text 后重试。"
+            ),
+            "source_docs": [],
+        }
 
     # 持久化问答对
     db.add(Message(conversation_id=conv.id, role="user", content=body.question))

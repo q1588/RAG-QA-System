@@ -1,0 +1,3 @@
+# ===== 开发/测试依赖（单测用，Docker 生产不安装）=====
+-r requirements.txt
+pytest>=8.0

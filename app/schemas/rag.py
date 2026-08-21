@@ -22,7 +22,7 @@ class SourceDoc(BaseModel):
 
     index: int
     source: str = ""
-    distance: float = 0.0
+    relevance: float = 0.0  # 相关性 0~1，越大越相关
     content: str = ""
 
 

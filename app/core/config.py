@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # 项目根目录（8.11/）
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # 项目根目录（RAG-QA-System/）
 
 
 class Settings(BaseSettings):
@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 500                  # 切块大小
     CHUNK_OVERLAP: int = 60                # 切块重叠
     TOP_K: int = 3                         # 检索返回片段数
+    RAG_RELEVANCE_THRESHOLD: float = 0.5   # 相关性阈值：低于此值视为知识库无相关内容，直接诚实回答
     MAX_CONTEXT_HISTORY: int = 8           # 多轮对话记忆条数
 
 
