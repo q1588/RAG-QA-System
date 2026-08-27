@@ -9,14 +9,19 @@ python-multipart>=0.0.9    # 文件上传 / OAuth2PasswordRequestForm
 python-dotenv>=1.0
 bcrypt>=4.1                # 密码加盐哈希（passlib 与 bcrypt 5.x 不兼容，勿用）
 PyJWT>=2.8                 # JWT 令牌
-pypdf>=4.0                 # PDF 文档解析
-python-docx>=1.1           # docx 文档解析
-httpx>=0.27                # 冒烟测试客户端
+pypdf>=4.0                 # PDF 文档解析（逐页容错）
+python-docx>=1.1           # docx 文档解析（段落 + 表格）
+httpx>=0.27                # HTTP 客户端 / 冒烟测试
 
 # ===== LangChain 1.x + RAG =====
 langchain>=1.0
 langchain-core>=1.0
-langchain-chroma>=1.0
-langchain-ollama>=1.0
 langchain-text-splitters>=1.0
-chromadb>=1.5
+# Milvus 向量库（升级需求 #1）：Milvus Lite 本地文件 / 独立 Milvus 服务均支持
+langchain-milvus>=0.4.0
+pymilvus>=3.0.0
+milvus-lite>=3.0.0         # Milvus Lite（Windows/macOS/Linux 本地嵌入式向量库）
+# 在线 Embedding / LLM API（升级需求 #2、#5）：OpenAI 兼容协议
+langchain-openai>=1.6.0
+# 可选：EMBEDDING_PROVIDER=ollama / LLM_PROVIDER=ollama 时的本地兜底模型
+langchain-ollama>=1.0

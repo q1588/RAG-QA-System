@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """RAG 相关请求/响应模型。"""
+from typing import Literal, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -7,6 +9,14 @@ class VectorizeRequest(BaseModel):
     """对已上传的文件做向量化。"""
 
     filename: str = Field(description="已上传到 upload_files 的文件名")
+    strategy: Optional[Literal["recursive", "semantic", "hybrid"]] = Field(
+        default=None,
+        description="切块策略；不传则使用配置 CHUNKING_STRATEGY",
+    )
+    rebuild: bool = Field(
+        default=False,
+        description="切换了不同维度 Embedding 模型后置 true：重建向量集合再写入",
+    )
 
 
 class QueryRequest(BaseModel):

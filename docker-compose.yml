@@ -1,6 +1,8 @@
-# 基于大模型的 RAG 知识库问答系统 —— Docker 部署
-# 前提：宿主机已安装并运行 Ollama（qwen2.5:3b + nomic-embed-text 已 pull）
+# 基于大模型的 RAG 知识库问答系统 —— Docker 部署（升级版：Milvus 向量库 + 在线模型 API）
+# 架构：mysql(业务库) + etcd/minio/milvus(向量库) + api(FastAPI)
 # 用法：docker compose up -d --build
+# 注意：本机 docker.io 若不可达，请在 Docker Desktop 的 registry-mirrors 配置国内镜像
+#       （本机 daemon.json 已配置 docker.m.daocloud.io 等镜像源）。
 services:
   db:
     image: mysql:8.0
@@ -20,23 +22,95 @@ services:
       timeout: 5s
       retries: 20
 
+  # ---- Milvus 向量库（升级需求 #1）----
+  etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.18
+    restart: unless-stopped
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    container_name: milvus-minio
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    restart: unless-stopped
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.5.4
+    restart: unless-stopped
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"   # 向量检索端口（供 API 连接）
+      - "9091:9091"     # 管理/健康检查端口
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    depends_on:
+      - etcd
+      - minio
+
   api:
     build: .
+    image: q1588/rag-qa-system:latest
     container_name: rag_api
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      milvus:
+        condition: service_healthy
     environment:
       DATABASE_URL: mysql+asyncmy://rag_user:rag_pass@db:3306/rag_db?charset=utf8mb4
-      # Docker Desktop 通过 host.docker.internal 访问宿主机 Ollama
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
       JWT_SECRET: ${JWT_SECRET:-please-change-me-in-production}
-      EMBED_MODEL: ${EMBED_MODEL:-nomic-embed-text}
-      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b}
+      # 向量库：连接 compose 内的独立 Milvus 服务
+      MILVUS_URL: http://milvus:19530
+      # 在线 Embedding / LLM（在 .env 或宿主机环境变量中提供 Key；不填则自动降级 Ollama）
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-openai}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-https://api.siliconflow.cn/v1}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBED_MODEL: ${EMBED_MODEL:-BAAI/bge-m3}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.siliconflow.cn/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      # 降级到宿主机 Ollama（如启用，先改 provider=ollama）
+      # OLLAMA_BASE_URL: http://host.docker.internal:11434
+      CHUNKING_STRATEGY: ${CHUNKING_STRATEGY:-recursive}
     volumes:
       - upload_files:/app/upload_files
-      - chroma_store:/app/chroma_store
     ports:
       - "8000:8000"
     healthcheck:
@@ -44,9 +118,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 20s
 
 volumes:
   mysql_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
   upload_files:
-  chroma_store:

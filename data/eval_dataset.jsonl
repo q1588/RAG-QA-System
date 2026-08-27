@@ -1,0 +1,14 @@
+{"question":"RAG 是什么？它解决什么问题？","source":"rag.txt","relevant_snippets":["先查资料，再写回答","临时去外部知识库查找相关材料"],"notes":"RAG 定义与核心思路"}
+{"question":"传统大模型为什么会产生幻觉？","source":"rag.txt","relevant_snippets":["模型训练完成之后，它记住的内容就固定下来","很容易出现幻觉"],"notes":"幻觉成因"}
+{"question":"RAG 的索引阶段包含哪些步骤？","source":"rag.txt","relevant_snippets":["文档加载","文本切分","向量化","存入向量数据库"],"notes":"索引阶段"}
+{"question":"文本切分（Chunk）的目的是什么？","source":"rag.txt","relevant_snippets":["切割成一小段一小段","超出模型输入窗口"],"notes":"切块目的"}
+{"question":"向量化是什么意思？","source":"rag.txt","relevant_snippets":["嵌入模型","转换成一组数字向量"],"notes":"向量化"}
+{"question":"常见的向量数据库有哪些？","source":"rag.txt","relevant_snippets":["Chroma、Milvus、OpenSearch"],"notes":"向量数据库选型"}
+{"question":"查询阶段（用户提问时）的流程是什么？","source":"rag.txt","relevant_snippets":["问题同样转为向量","相似度检索","提示词 Prompt"],"notes":"查询阶段"}
+{"question":"RAG 能解决哪些现实问题？","source":"rag.txt","relevant_snippets":["减少幻觉","知识快速更新","私有数据问答","降低成本"],"notes":"RAG 价值"}
+{"question":"RAG 相比微调大模型有什么成本优势？","source":"rag.txt","relevant_snippets":["不用微调大模型","硬件要求更低"],"notes":"成本优势"}
+{"question":"RAG 有哪些常见局限？","source":"rag.txt","relevant_snippets":["切分策略会影响回答质量","检索不一定每次都能拿到正确片段","上下文窗口上限"],"notes":"RAG 局限"}
+{"question":"为什么说 RAG 像开卷考试？","source":"rag.txt","relevant_snippets":["开卷考试","参考书"],"notes":"生活类比"}
+{"question":"大模型在 RAG 中扮演什么角色？","source":"rag.txt","relevant_snippets":["考生","记忆力有限"],"notes":"角色类比"}
+{"question":"向量数据库在 RAG 中的作用是什么？","source":"rag.txt","relevant_snippets":["快速比对向量相似度"],"notes":"向量库作用"}
+{"question":"RAG 能用于哪些私有数据场景？","source":"rag.txt","relevant_snippets":["作业文档","企业内部文件"],"notes":"私有数据"}

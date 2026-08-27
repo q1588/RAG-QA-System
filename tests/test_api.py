@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
 """接口集成测试：认证 / 会话 / 消息 / 文档上传删除 / 健康检查。
 
-依赖 Ollama 的两处服务（向量化、RAG 问答）通过 monkeypatch 打桩，
-保证单测环境不依赖外部大模型即可覆盖接口层逻辑；
-真实大模型链路由 scripts/smoke_test.py 做端到端验证。
+依赖外部模型服务（向量化、RAG 问答）的接口通过 monkeypatch 打桩，
+保证单测环境不依赖外部 API 即可覆盖接口层逻辑；
+真实模型链路由 scripts/smoke_test.py / scripts/eval_rag.py 做端到端验证。
 """
 import pytest
 from fastapi.testclient import TestClient
 
-# conftest.py 已在本模块导入前设置好隔离的 DATABASE_URL/CHROMA_DIR/UPLOAD_DIR
+# conftest.py 已在本模块导入前设置好隔离的 DATABASE_URL/MILVUS_URL/UPLOAD_DIR
+from app.core.config import settings
 from app.api import rag as rag_api
 from app.main import app
 
 
 @pytest.fixture(scope="module")
 def client():
-    """TestClient 上下文管理器会触发 lifespan（建表 + 创建数据目录）。"""
+    """TestClient 上下文管理器会触发 lifespan（建表 + 创建数据目录 + Milvus 初始化）。"""
     with TestClient(app) as c:
         yield c
 
@@ -101,8 +102,8 @@ class TestConversation:
         assert r.status_code == 404
 
 
-def _fake_rag_query(question: str, history: list, top_k: int = 3):
-    """测试用 RAG 打桩：返回固定答案，不依赖 Ollama。"""
+async def _fake_rag_query(question: str, history: list, top_k: int = 3):
+    """测试用 RAG 打桩：返回固定答案，不依赖外部 API。"""
     return {"answer": f"针对「{question}」的模拟回答", "source_docs": []}
 
 
@@ -157,6 +158,15 @@ class TestFiles:
         r = client.get("/api/rag/files", headers=auth_headers)
         assert "doc1.txt" not in [f["filename"] for f in r.json()]
 
+    def test_upload_too_large_413(self, client, auth_headers, monkeypatch):
+        monkeypatch.setattr(settings, "MAX_UPLOAD_SIZE_MB", 0)  # 任何非空内容都超限
+        r = client.post(
+            "/api/rag/upload",
+            headers=auth_headers,
+            files={"file": ("big.txt", b"x" * 1024, "text/plain")},
+        )
+        assert r.status_code == 413
+
     def test_unsupported_extension_400(self, client, auth_headers):
         r = client.post(
             "/api/rag/upload",
@@ -168,8 +178,8 @@ class TestFiles:
 
 class TestRag:
     def test_vectorize(self, client, auth_headers, monkeypatch):
-        def fake_vectorize(filename: str):
-            return {"filename": filename, "chunk_count": 3}
+        async def fake_vectorize(filename: str, strategy: str | None = None, rebuild: bool = False):
+            return {"filename": filename, "chunk_count": 3, "strategy": strategy or "recursive"}
 
         monkeypatch.setattr(rag_api.rag_service, "vectorize_file", fake_vectorize)
 
@@ -181,6 +191,29 @@ class TestRag:
         assert r.status_code == 200
         assert r.json()["chunk_count"] == 3
 
+    def test_vectorize_with_strategy(self, client, auth_headers, monkeypatch):
+        async def fake_vectorize(filename: str, strategy: str | None = None, rebuild: bool = False):
+            return {"filename": filename, "chunk_count": 1, "strategy": strategy}
+
+        monkeypatch.setattr(rag_api.rag_service, "vectorize_file", fake_vectorize)
+
+        r = client.post(
+            "/api/rag/vectorize",
+            headers=auth_headers,
+            json={"filename": "doc1.txt", "strategy": "semantic"},
+        )
+        assert r.status_code == 200
+        assert r.json()["strategy"] == "semantic"
+
+    def test_vectorize_invalid_strategy_422(self, client, auth_headers):
+        # pydantic Literal 校验：非法策略 -> 422
+        r = client.post(
+            "/api/rag/vectorize",
+            headers=auth_headers,
+            json={"filename": "doc1.txt", "strategy": "unknown"},
+        )
+        assert r.status_code == 422
+
     def test_vectorize_missing_file_404(self, client, auth_headers):
         # 不打桩：真实 vectorize_file 对不存在的文件抛 FileNotFoundError -> 404
         r = client.post(
@@ -189,6 +222,69 @@ class TestRag:
             json={"filename": "不存在.md"},
         )
         assert r.status_code == 404
+
+    def test_vectorize_path_traversal_400(self, client, auth_headers):
+        # 路径穿越：必须在读取文件前被 400 拒绝（不依赖文件是否存在）
+        r = client.post(
+            "/api/rag/vectorize",
+            headers=auth_headers,
+            json={"filename": "../probe_read_me.md"},
+        )
+        assert r.status_code == 400
+        assert "路径穿越" in r.json()["detail"]
+
+    def test_delete_path_traversal_400(self, client, auth_headers):
+        # %5C 解码为反斜杠的 Windows 路径穿越同样被 400 拒绝
+        r = client.delete("/api/rag/files/..%5Cprobe_delete_me.txt", headers=auth_headers)
+        assert r.status_code == 400
+        assert "路径穿越" in r.json()["detail"]
+
+    def test_vectorize_milvus_down_503(self, client, auth_headers, monkeypatch):
+        """Milvus 不可用（ConnectionConfigException）时 vectorize 返回 503 而非裸 500。"""
+        from pymilvus.exceptions import ConnectionConfigException
+
+        async def broken(filename: str, strategy: str | None = None, rebuild: bool = False):
+            raise ConnectionConfigException("milvus_store/rag.db 被占用或损坏")
+
+        monkeypatch.setattr(rag_api.rag_service, "vectorize_file", broken)
+        r = client.post(
+            "/api/rag/vectorize",
+            headers=auth_headers,
+            json={"filename": "doc1.txt"},
+        )
+        assert r.status_code == 503
+        assert "Milvus" in r.json()["detail"]
+
+    def test_delete_milvus_down_503(self, client, auth_headers, monkeypatch):
+        """Milvus 不可用时删除返回 503（而非裸 500），文件保留可重试。"""
+        from pymilvus.exceptions import MilvusException
+
+        async def broken(filename: str):
+            raise MilvusException(2, "Fail connecting to server on 127.0.0.1:19530")
+
+        monkeypatch.setattr(rag_api.rag_service, "delete_file", broken)
+        r = client.delete("/api/rag/files/doc1.txt", headers=auth_headers)
+        assert r.status_code == 503
+        assert "Milvus" in r.json()["detail"]
+
+    def test_query_milvus_down_graceful_200(self, client, auth_headers, monkeypatch):
+        """Milvus 不可用时查询走降级兜底（200 + 友好回答），而非 500。"""
+        from pymilvus.exceptions import ConnectionConfigException
+
+        async def broken(question, history, top_k=None):
+            raise ConnectionConfigException("milvus not reachable")
+
+        monkeypatch.setattr(rag_api.rag_service, "rag_query", broken)
+        conv_id = client.post(
+            "/api/chat/conversations", headers=auth_headers, json={}
+        ).json()["id"]
+        r = client.post(
+            "/api/rag/query",
+            headers=auth_headers,
+            json={"conversation_id": conv_id, "question": "RAG 是什么？"},
+        )
+        assert r.status_code == 200
+        assert "无法连接" in r.json()["answer"] or "Milvus" in r.json()["answer"]
 
     def test_query_persists_messages(self, client, auth_headers, monkeypatch):
         monkeypatch.setattr(rag_api.rag_service, "rag_query", _fake_rag_query)

@@ -7,11 +7,15 @@ __pycache__/
 .venv/
 venv/
 
-# 本地数据库 / 向量库 / 上传文件
+# 本地数据库 / 向量库（Milvus Lite） / 上传文件
 app.db
+milvus_store/
 chroma_store/
 upload_files/
 
 # 测试与日志
 .pytest_cache/
 *.log
+eval_report.json
+# IDE（PyCharm）
+.idea/

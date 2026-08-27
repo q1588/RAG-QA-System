@@ -11,15 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Message
 
-# 兜底/失败回答的特征词，命中即视为无效，不进入多轮上下文
+# 系统生成的兜底/失败回答特征短语（精确匹配，避免误伤含「抱歉/error」等词的正常回答）。
+# 仅以下两类系统输出会被剔除：
+#   1) 检索兜底：「抱歉，知识库中暂时没有…」「知识库中没有相关信息…」
+#   2) 后端降级：「抱歉，请求失败：无法连接外部模型服务…」
 _INVALID_MARKERS = (
-    "抱歉",
-    "对不起",
-    "我不知道",
-    "无法回答",
-    "error",
-    "failed",
-    "请求失败",
+    "知识库中暂时没有",
+    "知识库中没有相关信息",
+    "请求失败：无法连接",
+    "无法连接外部模型服务",
 )
 
 
@@ -36,19 +36,29 @@ async def build_history(
     db: AsyncSession, conversation_id: int, last_n: int = 8
 ) -> list[dict[str, str]]:
     """返回按时间正序排列的最近 N 条有效对话，形如 [{"role", "content"}, ...]。"""
-    stmt = (
-        select(Message)
-        .where(Message.conversation_id == conversation_id)
-        .order_by(Message.created_at.desc())
-        .limit(last_n * 2)  # 多取一倍，过滤后仍可能不够 N 条
-    )
-    rows = (await db.execute(stmt)).scalars().all()
-
+    # 分批向后翻页采样，直到凑够 last_n 条有效消息（或没有更多历史）。
+    # 固定过采样（如 ×2）在无效/失败回答过半时会导致历史不足，这里改为循环补足。
     valid: list[Message] = []
-    for m in rows:
-        if m.role in ("user", "assistant") and m.msg_type == "text":
-            if not _is_invalid(m.content):
-                valid.append(m)
+    offset = 0
+    page_size = max(last_n * 2, 10)
+    while len(valid) < last_n:
+        stmt = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
+        rows = (await db.execute(stmt)).scalars().all()
+        if not rows:
+            break
+        for m in rows:
+            if m.role in ("user", "assistant") and m.msg_type == "text":
+                if not _is_invalid(m.content):
+                    valid.append(m)
+                    if len(valid) >= last_n:
+                        break
+        offset += page_size
 
     valid = valid[:last_n]
     valid.reverse()  # 回到时间正序

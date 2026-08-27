@@ -15,8 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY app ./app
 COPY static ./static
 
-# 数据目录（上传文档 / 向量库 / SQLite）
-RUN mkdir -p upload_files chroma_store
+# 数据目录（上传文档 / Milvus Lite 向量库 / SQLite）
+RUN mkdir -p upload_files milvus_store
 
 EXPOSE 8000
 
