@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     EMBEDDING_API_KEY: str = ""
     EMBED_MODEL: str = "BAAI/bge-m3"           # SiliconFlow 上效果更好的大参数模型（1024 维）
     # OpenAI 官方可用 text-embedding-3-large；阿里云百炼可用 text-embedding-v3
-    EMBEDDING_BATCH_SIZE: int = 32            # 语义切块时的向量化批大小
+    EMBEDDING_BATCH_SIZE: int = 10            # 向量化批大小（百炼 text-embedding-v3 兼容接口单批上限 10；OpenAI 官方可调大）
 
     # ---------- LLM（在线 API，OpenAI 兼容协议）----------
     # provider = openai：在线 API 服务，异步调用、天然支持高并发

@@ -12,3 +12,89 @@
 {"question":"大模型在 RAG 中扮演什么角色？","source":"rag.txt","relevant_snippets":["考生","记忆力有限"],"notes":"角色类比"}
 {"question":"向量数据库在 RAG 中的作用是什么？","source":"rag.txt","relevant_snippets":["快速比对向量相似度"],"notes":"向量库作用"}
 {"question":"RAG 能用于哪些私有数据场景？","source":"rag.txt","relevant_snippets":["作业文档","企业内部文件"],"notes":"私有数据"}
+{"question":"FastAPI 建立在哪些组件之上？","source":"fastapi.md","relevant_snippets":["Starlette（Web 部分）","Pydantic（数据校验部分）"],"notes":"FastAPI 基础架构"}
+{"question":"FastAPI 如何定义接口路由？","source":"fastapi.md","relevant_snippets":["使用装饰器声明路径与请求方法","@app.get 装饰器定义 GET 接口"],"notes":"路由定义"}
+{"question":"FastAPI 的请求体校验是如何实现的？","source":"fastapi.md","relevant_snippets":["通过 Pydantic 模型声明请求结构","非法请求返回 422 校验错误"],"notes":"请求体校验"}
+{"question":"FastAPI 的依赖注入使用什么关键字？","source":"fastapi.md","relevant_snippets":["使用 Depends 声明依赖","自动解析并注入"],"notes":"依赖注入"}
+{"question":"FastAPI 异步接口是如何执行的？","source":"fastapi.md","relevant_snippets":["async def 时由事件循环处理"],"notes":"异步支持"}
+{"question":"FastAPI 中的普通同步函数如何处理？","source":"fastapi.md","relevant_snippets":["自动放入线程池执行"],"notes":"同步函数"}
+{"question":"FastAPI 的中间件用于什么？","source":"fastapi.md","relevant_snippets":["通过 add_middleware 注册","统一处理跨域（CORS）、日志、限流"],"notes":"中间件"}
+{"question":"FastAPI 的生命周期钩子做什么？","source":"fastapi.md","relevant_snippets":["lifespan 上下文管理器","执行初始化和清理"],"notes":"生命周期"}
+{"question":"FastAPI 的自动文档在哪里查看？","source":"fastapi.md","relevant_snippets":["/docs 得到 Swagger UI","/redoc 得到 ReDoc"],"notes":"自动文档"}
+{"question":"FastAPI 构建在哪些库之上？","source":"fastapi.md","relevant_snippets":["基于 Python 类型提示的现代 Web 框架","自动生成 OpenAPI 文档"],"notes":"FastAPI 定位"}
+{"question":"Docker 如何实现应用打包与隔离？","source":"docker.md","relevant_snippets":["通过镜像与容器实现应用打包与隔离","容器是镜像的运行实例"],"notes":"Docker 基础"}
+{"question":"Dockerfile 中 FROM 指令的作用是什么？","source":"docker.md","relevant_snippets":["FROM 指定基础镜像"],"notes":"Dockerfile 指令"}
+{"question":"为什么 Dockerfile 要先把依赖安装放在代码拷贝之前？","source":"docker.md","relevant_snippets":["每条指令生成一层","未变化的层可以复用缓存"],"notes":"镜像分层缓存"}
+{"question":"Docker Compose 用什么格式描述多容器应用？","source":"docker.md","relevant_snippets":["YAML 文件描述多容器应用"],"notes":"Compose 文件"}
+{"question":"数据卷的作用是什么？","source":"docker.md","relevant_snippets":["数据卷用于持久化容器数据","容器删除后数据仍然保留"],"notes":"数据卷"}
+{"question":"docker compose up -d 命令的作用？","source":"docker.md","relevant_snippets":["docker compose up -d 后台启动整个应用"],"notes":"常用命令"}
+{"question":"Docker 健康检查配合什么控制服务启动顺序？","source":"docker.md","relevant_snippets":["healthcheck 通过探测命令判断服务是否就绪","depends_on 的 condition"],"notes":"健康检查"}
+{"question":"Dockerfile 中 CMD 指令定义什么？","source":"docker.md","relevant_snippets":["CMD 定义容器启动命令"],"notes":"CMD 指令"}
+{"question":"bind mount 与数据卷有什么区别？","source":"docker.md","relevant_snippets":["bind mount 则是把宿主目录挂载进容器"],"notes":"挂载方式"}
+{"question":"Milvus 适合哪些场景？","source":"milvus.md","relevant_snippets":["专为向量相似度检索设计的数据库","常用于 RAG 检索增强生成"],"notes":"Milvus 定位"}
+{"question":"Milvus 中 collection 相当于什么？","source":"milvus.md","relevant_snippets":["collection 相当于关系数据库中的表"],"notes":"核心概念"}
+{"question":"Milvus 常见的向量度量方式有哪些？","source":"milvus.md","relevant_snippets":["COSINE（余弦相似度）","IP（内积）","L2（欧氏距离）"],"notes":"度量方式"}
+{"question":"向量归一化后 COSINE 与 IP 有什么关系？","source":"milvus.md","relevant_snippets":["向量归一化之后 COSINE 与 IP 等价","返回的距离即相似度"],"notes":"归一化"}
+{"question":"HNSW 索引有什么特点？","source":"milvus.md","relevant_snippets":["HNSW 适合高召回与低延迟场景","内存占用较高"],"notes":"索引类型"}
+{"question":"Milvus Lite 是什么？","source":"milvus.md","relevant_snippets":["轻量嵌入式版本，单文件即可运行","无需部署独立服务"],"notes":"Milvus Lite"}
+{"question":"Milvus 单机 Standalone 部署由哪些组件组成？","source":"milvus.md","relevant_snippets":["etcd（元数据存储）","MinIO（对象存储）","Milvus 主服务"],"notes":"部署形态"}
+{"question":"Milvus 检索时如何按标量字段过滤？","source":"milvus.md","relevant_snippets":["用表达式按标量字段过滤","按 source 字段匹配"],"notes":"检索过滤"}
+{"question":"AUTOINDEX 索引有什么特点？","source":"milvus.md","relevant_snippets":["AUTOINDEX 会自动选择合适的索引"],"notes":"AUTOINDEX"}
+{"question":"LangChain 提供哪些模块化组件？","source":"langchain.md","relevant_snippets":["模型调用、提示词管理、检索、Agent"],"notes":"LangChain 组件"}
+{"question":"LangChain 的 OutputParser 作用是什么？","source":"langchain.md","relevant_snippets":["OutputParser 解析模型输出为结构化结果"],"notes":"OutputParser"}
+{"question":"递归字符切分是如何切分的？","source":"langchain.md","relevant_snippets":["递归字符切分按分隔符优先级逐级切分"],"notes":"递归切分"}
+{"question":"语义切分基于什么原理？","source":"langchain.md","relevant_snippets":["基于句向量相似度在主题跳变处断开"],"notes":"语义切分"}
+{"question":"LangChain 的 VectorStore 抽象了什么？","source":"langchain.md","relevant_snippets":["统一 add_texts 与 similarity_search 接口"],"notes":"向量存储抽象"}
+{"question":"RAG 查询阶段的流程是什么？","source":"langchain.md","relevant_snippets":["先把问题向量化","相似度检索取回 Top-K 片段","组装提示词后由模型生成答案"],"notes":"RAG 查询流程"}
+{"question":"检索质量用什么指标量化？","source":"langchain.md","relevant_snippets":["Hit@K、Recall@K、MRR@K"],"notes":"检索评估"}
+{"question":"LangChain 的 Runnable 有什么作用？","source":"langchain.md","relevant_snippets":["Runnable 串联各组件构成处理链"],"notes":"Runnable"}
+{"question":"SQLAlchemy 是什么？","source":"mysql.md","relevant_snippets":["ORM（对象关系映射）框架","通过映射自动生成 SQL"],"notes":"SQLAlchemy 定位"}
+{"question":"SQLAlchemy 声明式模型如何定义？","source":"mysql.md","relevant_snippets":["继承 DeclarativeBase 的类对应一张表","Mapped 与 mapped_column"],"notes":"声明式模型"}
+{"question":"SQLAlchemy 会话的作用是什么？","source":"mysql.md","relevant_snippets":["数据库操作的统一入口","负责事务管理"],"notes":"Session"}
+{"question":"如何创建异步数据库引擎？","source":"mysql.md","relevant_snippets":["create_async_engine 创建异步引擎","配合 AsyncSession"],"notes":"异步引擎"}
+{"question":"pool_pre_ping 的作用是什么？","source":"mysql.md","relevant_snippets":["取连接时探测掉线连接"],"notes":"连接池"}
+{"question":"pool_recycle 的作用是什么？","source":"mysql.md","relevant_snippets":["定期回收长时间未用的连接"],"notes":"连接回收"}
+{"question":"索引如何提升查询性能？","source":"mysql.md","relevant_snippets":["合理建立索引能显著提升查询性能","联合索引按字段顺序匹配"],"notes":"索引"}
+{"question":"数据库事务的保证是什么？","source":"mysql.md","relevant_snippets":["要么全部成功要么全部回滚","保证数据一致性"],"notes":"事务"}
+{"question":"回滚（rollback）做什么？","source":"mysql.md","relevant_snippets":["撤销未提交的修改"],"notes":"回滚"}
+{"question":"ORM 的核心思想是什么？","source":"mysql.md","relevant_snippets":["用 Python 类描述数据库表结构","避免手写大量 SQL 语句"],"notes":"ORM 思想"}
+{"question":"JWT 认证有什么特点？","source":"auth.md","relevant_snippets":["无状态认证的常用方案","无需存储会话"],"notes":"JWT 特点"}
+{"question":"JWT 令牌由哪几部分组成？","source":"auth.md","relevant_snippets":["Header、Payload、Signature 三部分组成","用点号分隔"],"notes":"令牌结构"}
+{"question":"JWT 的 Signature 如何生成？","source":"auth.md","relevant_snippets":["由密钥对前两部分签名"],"notes":"签名"}
+{"question":"用户密码应如何安全存储？","source":"auth.md","relevant_snippets":["bcrypt 加盐哈希保存","校验时对输入重新哈希比对"],"notes":"密码安全"}
+{"question":"如何防止接口越权访问？","source":"auth.md","relevant_snippets":["校验令牌解析出的用户 ID","强制附加归属条件"],"notes":"越权防护"}
+{"question":"令牌过期后如何处理？","source":"auth.md","relevant_snippets":["设置合理的过期时间","过期后需重新登录"],"notes":"令牌过期"}
+{"question":"鉴权逻辑如何复用？","source":"auth.md","relevant_snippets":["把解析令牌、获取当前用户的操作抽成公共依赖"],"notes":"鉴权依赖"}
+{"question":"JWT 的 Header 声明什么？","source":"auth.md","relevant_snippets":["Header 声明签名算法"],"notes":"Header"}
+{"question":"JWT 的 Payload 携带什么？","source":"auth.md","relevant_snippets":["携带声明（如用户 ID、过期时间）"],"notes":"Payload"}
+{"question":"JWT 为什么无需存储会话？","source":"auth.md","relevant_snippets":["服务端验签后即可识别用户"],"notes":"无状态"}
+{"question":"pytest 测试函数如何命名？","source":"pytest.md","relevant_snippets":["test_ 前缀命名"],"notes":"命名规范"}
+{"question":"pytest 的 fixture 作用是什么？","source":"pytest.md","relevant_snippets":["准备测试环境与数据的可复用装置","支持作用域控制"],"notes":"fixture"}
+{"question":"pytest 参数化使用什么装饰器？","source":"pytest.md","relevant_snippets":["parametrize 装饰器"],"notes":"参数化"}
+{"question":"monkeypatch 用于什么？","source":"pytest.md","relevant_snippets":["动态替换对象属性或函数","模拟外部依赖"],"notes":"monkeypatch"}
+{"question":"测试如何做到隔离？","source":"pytest.md","relevant_snippets":["独立的临时目录与数据库","环境变量在导入应用前设置"],"notes":"测试隔离"}
+{"question":"pytest.approx 解决什么问题？","source":"pytest.md","relevant_snippets":["处理浮点比较"],"notes":"approx"}
+{"question":"fixture 支持哪些作用域？","source":"pytest.md","relevant_snippets":["函数级、模块级、会话级"],"notes":"fixture 作用域"}
+{"question":"断言失败时 pytest 展示什么？","source":"pytest.md","relevant_snippets":["自动展示实际值与期望值"],"notes":"断言"}
+{"question":"模拟数据库或第三方 API 用什么？","source":"pytest.md","relevant_snippets":["monkeypatch：动态替换对象属性或函数"],"notes":"外部依赖模拟"}
+{"question":"pytest 为什么流行？","source":"pytest.md","relevant_snippets":["支持简洁的断言与丰富的插件生态"],"notes":"pytest 优势"}
+{"question":"asyncio 是什么？","source":"asyncio.md","relevant_snippets":["标准库提供的异步 IO 框架","通过事件循环调度协程"],"notes":"asyncio 定位"}
+{"question":"协程如何定义与调用？","source":"asyncio.md","relevant_snippets":["async def 定义的函数返回协程对象","通过 await 调用"],"notes":"协程"}
+{"question":"事件循环负责什么？","source":"asyncio.md","relevant_snippets":["负责调度与执行协程的任务队列"],"notes":"事件循环"}
+{"question":"asyncio.run 的作用是什么？","source":"asyncio.md","relevant_snippets":["启动事件循环并运行主协程"],"notes":"asyncio.run"}
+{"question":"同时等待多个协程用什么？","source":"asyncio.md","relevant_snippets":["asyncio.gather 同时等待多个协程完成"],"notes":"并发"}
+{"question":"创建后台任务用什么？","source":"asyncio.md","relevant_snippets":["create_task 创建后台任务"],"notes":"后台任务"}
+{"question":"同步阻塞函数如何处理？","source":"asyncio.md","relevant_snippets":["asyncio.to_thread 放入线程池执行"],"notes":"线程池"}
+{"question":"协程超时如何控制？","source":"asyncio.md","relevant_snippets":["asyncio.wait_for 为协程设置超时","超时后取消任务"],"notes":"超时控制"}
+{"question":"协程并发安全用什么锁？","source":"asyncio.md","relevant_snippets":["asyncio.Lock 提供协程安全的锁实现"],"notes":"并发安全"}
+{"question":"异步编程提升的是什么？","source":"asyncio.md","relevant_snippets":["在等待 IO 时切换执行其他任务","提升并发吞吐"],"notes":"异步价值"}
+{"question":"Ollama 是什么工具？","source":"ollama.md","relevant_snippets":["本地运行大模型的工具"],"notes":"Ollama 定位"}
+{"question":"如何拉取 Ollama 模型？","source":"ollama.md","relevant_snippets":["ollama pull 拉取模型"],"notes":"模型管理"}
+{"question":"ollama list 做什么？","source":"ollama.md","relevant_snippets":["查看已安装模型"],"notes":"模型列表"}
+{"question":"Ollama 默认监听什么端口？","source":"ollama.md","relevant_snippets":["默认监听 11434 端口"],"notes":"端口"}
+{"question":"nomic-embed-text 是什么？","source":"ollama.md","relevant_snippets":["常用的本地向量化模型","维度为 768"],"notes":"Embedding 模型"}
+{"question":"qwen2.5 系列有哪些参数规模？","source":"ollama.md","relevant_snippets":["3b、7b、14b 等版本"],"notes":"对话模型"}
+{"question":"本地模型有什么性能限制？","source":"ollama.md","relevant_snippets":["受 CPU/GPU 性能限制","并发能力弱于云端 API"],"notes":"性能考量"}
+{"question":"LangChain 如何调用 Ollama？","source":"ollama.md","relevant_snippets":["通过 base_url 指向该地址调用"],"notes":"框架集成"}
+{"question":"Ollama 适合什么场景？","source":"ollama.md","relevant_snippets":["适合离线开发环境"],"notes":"适用场景"}
+{"question":"显存与模型参数的关系？","source":"ollama.md","relevant_snippets":["显存越大可运行越大参数"],"notes":"显存"}
