@@ -17,9 +17,12 @@ upload_files/
 .pytest_cache/
 *.log
 eval_report.json
+
 # IDE（PyCharm）
 .idea/
+
 # 个人简历知识库与配套数据（隐私，禁止提交）
 data/resume_kb/
-data/eval_dataset_resume*.jsonldocs/简历Agent知识库说明.md
+data/eval_dataset_resume*.jsonl
+docs/简历Agent知识库说明.md
 scripts/sync_profile_to_myagent.py
